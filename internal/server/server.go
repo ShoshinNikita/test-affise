@@ -20,7 +20,7 @@ type Config struct {
 
 func NewServer(cfg Config) *Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handleURLs)
+	mux.HandleFunc("/", handleFetchURLs)
 
 	return &Server{
 		cfg: cfg,
