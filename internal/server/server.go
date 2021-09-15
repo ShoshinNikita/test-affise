@@ -17,22 +17,26 @@ type Server struct {
 }
 
 type Config struct {
-	Port int
+	Port           int
+	WorkerCount    int
+	RequestTimeout time.Duration
 }
 
 func NewServer(cfg Config) *Server {
+	s := &Server{
+		cfg: cfg,
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handleFetchURLs)
+	mux.HandleFunc("/", s.handleFetchURLs)
 
 	handler := rateLimitingMiddleware(mux, maxConcurrentRequests)
 
-	return &Server{
-		cfg: cfg,
-		httpServer: &http.Server{
-			Addr:    fmt.Sprintf(":%d", cfg.Port),
-			Handler: handler,
-		},
+	s.httpServer = &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		Handler: handler,
 	}
+	return s
 }
 
 func (s *Server) Start() error {

@@ -6,19 +6,24 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ShoshinNikita/test-affise/internal/server"
 )
 
 func main() {
 	var (
-		serverPort = flag.Int("port", 8080, "server port")
+		serverPort     = flag.Int("port", 8080, "server port")
+		workerCount    = flag.Int("worker-count", 4, "number of workers that fetch urls")
+		requestTimeout = flag.Duration("req-timeout", time.Second, "request timeout")
 	)
 	flag.Parse()
 
 	// Start server
 	s := server.NewServer(server.Config{
-		Port: *serverPort,
+		Port:           *serverPort,
+		WorkerCount:    *workerCount,
+		RequestTimeout: *requestTimeout,
 	})
 	errCh := make(chan error, 1)
 	go func() {

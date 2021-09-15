@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func handleFetchURLs(w http.ResponseWriter, r *http.Request) {
+func (s Server) handleFetchURLs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
@@ -38,7 +38,7 @@ func handleFetchURLs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := fetchURLs(r.Context(), req.URLs)
+	res, err := fetchURLs(r.Context(), s.cfg.WorkerCount, s.cfg.RequestTimeout, req.URLs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("url fetching failed: %s", err), http.StatusInternalServerError)
 		return
@@ -53,10 +53,10 @@ func handleFetchURLs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func fetchURLs(ctx context.Context, urls []string) (res []FetchResult, firstErr error) {
-	const maxWorkerCount = 4
+func fetchURLs(ctx context.Context, workerCount int, reqTimeout time.Duration,
+	urls []string) (res []FetchResult, firstErr error) {
 
-	urlsCh := make(chan string, maxWorkerCount)
+	urlsCh := make(chan string, workerCount)
 	go func() {
 		for _, u := range urls {
 			urlsCh <- u
@@ -94,12 +94,12 @@ func fetchURLs(ctx context.Context, urls []string) (res []FetchResult, firstErr 
 		workerResults FetchResults
 		wg            sync.WaitGroup
 	)
-	for i := 0; i < maxWorkerCount; i++ {
+	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			res, err := startFetchURLWorker(ctx, urlsCh)
+			res, err := startFetchURLWorker(ctx, reqTimeout, urlsCh)
 			if err != nil {
 				errCh <- err
 				return
@@ -118,7 +118,7 @@ func fetchURLs(ctx context.Context, urls []string) (res []FetchResult, firstErr 
 	return workerResults.Get(), nil
 }
 
-func startFetchURLWorker(ctx context.Context, urlsCh <-chan string) (res []FetchResult, err error) {
+func startFetchURLWorker(ctx context.Context, reqTimeout time.Duration, urlsCh <-chan string) (res []FetchResult, err error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -130,7 +130,7 @@ func startFetchURLWorker(ctx context.Context, urlsCh <-chan string) (res []Fetch
 				return res, nil
 			}
 
-			body, err := fetchURL(ctx, u)
+			body, err := fetchURL(ctx, reqTimeout, u)
 			if err != nil {
 				return nil, fmt.Errorf("couldn't fetch %q: %w", u, err)
 			}
@@ -142,15 +142,15 @@ func startFetchURLWorker(ctx context.Context, urlsCh <-chan string) (res []Fetch
 	}
 }
 
-func fetchURL(ctx context.Context, url string) (body string, err error) {
-	const requestTimeout = time.Second
+func fetchURL(ctx context.Context, reqTimeout time.Duration, url string) (body string, err error) {
+	log.Printf("[DBG] fetch %q", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", fmt.Errorf("couldn't build request: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
 
 	req = req.WithContext(ctx)
