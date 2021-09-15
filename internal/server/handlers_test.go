@@ -78,7 +78,7 @@ func startServer(t *testing.T, respTime time.Duration) (addr string) {
 		Addr: fmt.Sprintf(":%d", port),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(respTime)
-			w.Write([]byte("http://" + r.Host + r.URL.String()))
+			w.Write([]byte("http://" + r.Host + r.URL.String())) //nolint:errcheck
 		}),
 	}
 	t.Cleanup(func() {

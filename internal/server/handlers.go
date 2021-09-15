@@ -118,7 +118,9 @@ func fetchURLs(ctx context.Context, workerCount int, reqTimeout time.Duration,
 	return workerResults.Get(), nil
 }
 
-func startFetchURLWorker(ctx context.Context, reqTimeout time.Duration, urlsCh <-chan string) (res []FetchResult, err error) {
+func startFetchURLWorker(ctx context.Context, reqTimeout time.Duration,
+	urlsCh <-chan string) (res []FetchResult, err error) {
+
 	for {
 		select {
 		case <-ctx.Done():
