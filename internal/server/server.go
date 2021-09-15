@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const maxConcurrentRequests = 100
+
 type Server struct {
 	cfg        Config
 	httpServer *http.Server
@@ -22,11 +24,13 @@ func NewServer(cfg Config) *Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleFetchURLs)
 
+	handler := rateLimitingMiddleware(mux, maxConcurrentRequests)
+
 	return &Server{
 		cfg: cfg,
 		httpServer: &http.Server{
 			Addr:    fmt.Sprintf(":%d", cfg.Port),
-			Handler: mux,
+			Handler: handler,
 		},
 	}
 }
